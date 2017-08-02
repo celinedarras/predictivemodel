@@ -1,43 +1,48 @@
-# %matplotlib inline
-import matplotlib.pyplot as plt
+# Load the library with the iris dataset
+from sklearn.datasets import load_iris
+
+# Load scikit's random forest classifier library
+from sklearn.ensemble import RandomForestClassifier
+
+# Load pandas
+import pandas as pd
+
+# Load numpy
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-import seaborn as sns
-sns.set()
+
+# Create an object called iris with the iris data
+iris = load_iris()
+
+# Create a dataframe with the four feature variables
+df = pd.DataFrame(iris.data, columns=iris.feature_names)
 
 
-def create_data(N=1000):
-    Y = np.vstack([np.random.normal([3, 8], [1, 3], (N // 2, 2)),
-                   np.random.normal([8, 3], [3, 1], (N - N // 2, 2))])
-    X = np.vstack([0.1 * Y[:, 0] * Y[:, 1],
-                   np.sin(Y[:, 0]) * np.cos(Y[:, 1]),
-                   np.cos(Y[:, 0]) * np.sin(Y[:, 1])]).T
-    X = np.random.normal(X, 1.0)
-    return X, Y
-
-np.random.seed(0)
-X, Y = create_data(1000)
-
-fig, ax = plt.subplots()
-ax.plot(Y[:, 0], Y[:, 1], 'o', alpha=0.5)
-ax.add_patch(plt.Rectangle((6, 6), 14, 14, color='yellow', alpha=0.2))
-ax.set_xlim(0, 20); ax.set_ylim(0, 20)
-ax.set_xlabel('$y_1$'); ax.set_ylabel('$y_2$');
-plt.show()
+df['species'] = pd.Categorical.from_codes(iris.target, iris.target_names)
 
 
-from sklearn.cross_validation import train_test_split
-Xtrain, Xtest, Ytrain, Ytest = train_test_split(X, Y, train_size=0.5)
+df['is_train'] = np.random.uniform(0, 1, len(df)) <= .75
+
+# Create two new dataframes, one with the training rows, one with the test rows
+train, test = df[df['is_train']==True], df[df['is_train']==False]
+
+# Show the number of observations for the test and training dataframes
+print('Number of observations in the training data:', len(train))
+print('Number of observations in the test data:',len(test))
+
+features = df.columns[:4]
+
+y = pd.factorize(train['species'])[0]
+
+# Create a random forest classifier. By convention, clf means 'classifier'
+clf = RandomForestClassifier(n_jobs=2)
+clf.fit(train[features], y)
+
+clf.predict(test[features])
 
 
-from sklearn.ensemble import RandomForestRegressor
+preds = iris.target_names[clf.predict(test[features])]
 
-clf1 = RandomForestRegressor(100).fit(Xtrain, Ytrain)
-Ypred1 = clf1.predict(Xtest)
+pd.crosstab(test['species'], preds, rownames=['Actual Species'], colnames=['Predicted Species'])
 
-fig, ax = plt.subplots()
-ax.plot(Ypred1[:, 0], Ypred1[:, 1], 'o', alpha=0.5)
-ax.add_patch(plt.Rectangle((6, 6), 14, 14, color='yellow', alpha=0.2))
-ax.set_xlim(2, 12); ax.set_ylim(2, 12)
-ax.set_xlabel('$y_1$'); ax.set_ylabel('$y_2$');
-plt.show()
+
+print(list(zip(train[features], clf.feature_importances_)))
